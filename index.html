@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KAO CLINIC - Generador de Ficha Clínica</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- html2pdf CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            gold: '#C5A059',
+                            dark: '#111111',
+                            bg: '#FAF9F6',
+                            border: '#E5E0D8'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Estilos específicos para la vista previa e impresión del PDF exacto */
+        .pdf-preview {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 2.5cm 2cm;
+            background-color: #ffffff;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            font-family: Arial, Helvetica, sans-serif;
+            color: #000000;
+        }
+
+        .pdf-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .pdf-table, .pdf-table th, .pdf-table td {
+            border: 1px solid #000000;
+        }
+
+        .pdf-table td, .pdf-table th {
+            padding: 6px 10px;
+            text-align: left;
+            vertical-align: middle;
+            font-size: 10pt;
+        }
+
+        .pdf-table th {
+            background-color: #e6e6e6;
+            font-weight: normal;
+        }
+    </style>
+</head>
+<body class="bg-brand-bg text-gray-800 min-h-screen font-sans">
+
+    <!-- Header minimalista inspirado en KAO CLINIC -->
+    <header class="bg-white border-b border-brand-border py-4 px-8 flex justify-between items-center shadow-sm">
+        <div class="flex items-center space-x-3">
+            <div class="text-2xl font-bold tracking-wider text-black flex items-center">
+                KA<span class="text-brand-gold">O</span>
+                <span class="text-xs tracking-normal font-normal text-gray-500 ml-2 border-l border-gray-300 pl-2">CLINIC</span>
+            </div>
+        </div>
+        <div class="text-xs uppercase tracking-widest text-gray-400 font-medium">
+            Armonización Facial & Odontología
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- PANEL DE CONTROL / POS (IZQUIERDA) -->
+        <section class="lg:col-span-5 bg-white p-6 rounded-xl border border-brand-border shadow-sm flex flex-col justify-between">
+            <div>
+                <h2 class="text-lg font-semibold text-brand-dark mb-4 border-b pb-2 flex items-center justify-between">
+                    <span>Datos de Ficha Clínica</span>
+                    <span class="text-xs bg-brand-gold/10 text-brand-gold px-2 py-1 rounded font-normal">POS Mode</span>
+                </h2>
+
+                <!-- Formulario de Paciente -->
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase">Nombre y Apellido</label>
+                        <input type="text" id="inputNombre" placeholder="Ingrese nombre y apellido" oninput="updatePDF()"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-brand-gold text-sm">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase">Edad</label>
+                            <input type="text" id="inputEdad" placeholder="Ej: 30 años" oninput="updatePDF()"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-brand-gold text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase">Género</label>
+                            <select id="inputGenero" onchange="updatePDF()"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-brand-gold text-sm bg-white">
+                                <option value="MUJER">MUJER</option>
+                                <option value="HOMBRE">HOMBRE</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1 uppercase">Fecha de Consulta</label>
+                        <input type="text" id="inputFecha" placeholder="DD-MM-AAAA" oninput="updatePDF()"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-brand-gold text-sm">
+                    </div>
+                </div>
+
+                <!-- Agregar Tratamiento -->
+                <h3 class="text-sm font-semibold text-brand-dark mb-2 border-b pb-1">Agregar Tratamiento</h3>
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="newTratamiento" placeholder="Tratamiento"
+                        class="w-1/2 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-brand-gold">
+                    <input type="text" id="newCantidad" placeholder="Cant."
+                        class="w-1/4 px-2 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-brand-gold">
+                    <input type="text" id="newCosto" placeholder="Costo"
+                        class="w-1/4 px-2 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-brand-gold">
+                    <button onclick="addTreatment()"
+                        class="bg-brand-dark text-white px-3 py-2 rounded-md hover:bg-black transition text-sm font-bold">+</button>
+                </div>
+
+                <!-- Lista de Tratamientos Editables -->
+                <div class="space-y-2 max-h-60 overflow-y-auto pr-1" id="treatmentsList">
+                    <!-- Filas dinámicas -->
+                </div>
+            </div>
+
+            <!-- Botón Exportar PDF -->
+            <div class="mt-6 pt-4 border-t border-gray-100">
+                <button onclick="exportToPDF()"
+                    class="w-full bg-brand-gold hover:bg-yellow-600 text-white font-bold py-3 rounded-lg transition shadow-md flex items-center justify-center space-x-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <span>EXPORTAR A PDF</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- VISTA PREVIA DEL PDF (DERECHA) -->
+        <section class="lg:col-span-7 flex justify-center items-start overflow-x-auto p-2 bg-gray-200/50 rounded-xl border border-gray-200">
+            <div id="pdfContent" class="pdf-preview">
+                
+                <!-- Encabezado -->
+                <div style="text-align: center; margin-top: 10px; margin-bottom: 35px;">
+                    <div style="font-size: 12pt; font-weight: bold; text-transform: uppercase; margin-bottom: 3px;">
+                        FICHA CLÍNICA - ARMONIZACIÓN FACIAL
+                    </div>
+                    <div id="pdfGenero" style="font-size: 12pt; font-weight: bold; text-transform: uppercase;">
+                        (MUJER)
+                    </div>
+                </div>
+
+                <!-- Tabla Información del Paciente -->
+                <table class="pdf-table" style="margin-bottom: 40px;">
+                    <tr>
+                        <td style="width: 35%;">NOMBRE Y APELLIDO:</td>
+                        <td id="pdfNombre">&nbsp;</td>
+                    </tr>
+                    <tr>
+                        <td>EDAD:</td>
+                        <td id="pdfEdad">&nbsp;</td>
+                    </tr>
+                    <tr>
+                        <td>FECHA DE CONSULTA:</td>
+                        <td id="pdfFecha">&nbsp;</td>
+                    </tr>
+                </table>
+
+                <!-- Encabezado de Sección -->
+                <div style="font-size: 11pt; font-weight: bold; font-style: italic; margin-bottom: 8px; margin-left: 30px;">
+                    TRATAMIENTOS REALIZADOS Y COSTOS
+                </div>
+
+                <!-- Tabla de Tratamientos -->
+                <table class="pdf-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 55%;">TRATAMIENTO</th>
+                            <th style="width: 20%;">CANTIDAD</th>
+                            <th style="width: 25%;">COSTO</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pdfTreatmentsBody">
+                        <!-- Filas inyectadas -->
+                    </tbody>
+                </table>
+
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // Estado inicial sin datos quemados
+        let treatments = [];
+
+        // Renderizar controles POS
+        function renderPOSControls() {
+            const container = document.getElementById('treatmentsList');
+            container.innerHTML = '';
+
+            if (treatments.length === 0) {
+                container.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-2">No hay tratamientos agregados</p>';
+            } else {
+                treatments.forEach((item, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center gap-2 bg-gray-50 p-2 rounded border border-gray-200';
+                    div.innerHTML = `
+                        <input type="text" value="${item.name}" oninput="updateTreatment(${index}, 'name', this.value)"
+                            class="w-1/2 px-2 py-1 text-xs border rounded bg-white focus:outline-none focus:ring-1 focus:ring-brand-gold" placeholder="Tratamiento">
+                        <input type="text" value="${item.qty}" oninput="updateTreatment(${index}, 'qty', this.value)"
+                            class="w-1/4 px-2 py-1 text-xs border rounded bg-white focus:outline-none focus:ring-1 focus:ring-brand-gold" placeholder="Cantidad">
+                        <input type="text" value="${item.cost}" oninput="updateTreatment(${index}, 'cost', this.value)"
+                            class="w-1/4 px-2 py-1 text-xs border rounded bg-white focus:outline-none focus:ring-1 focus:ring-brand-gold" placeholder="Costo">
+                        <button onclick="removeTreatment(${index})" class="text-red-500 hover:text-red-700 font-bold px-1 text-sm">✕</button>
+                    `;
+                    container.appendChild(div);
+                });
+            }
+
+            updatePDFTable();
+        }
+
+        // Actualizar datos generales en vista previa
+        function updatePDF() {
+            const nombre = document.getElementById('inputNombre').value;
+            const edad = document.getElementById('inputEdad').value;
+            const fecha = document.getElementById('inputFecha').value;
+
+            document.getElementById('pdfNombre').innerHTML = nombre.trim() !== '' ? nombre : '&nbsp;';
+            document.getElementById('pdfEdad').innerHTML = edad.trim() !== '' ? edad : '&nbsp;';
+            document.getElementById('pdfFecha').innerHTML = fecha.trim() !== '' ? fecha : '&nbsp;';
+            document.getElementById('pdfGenero').innerText = `(${document.getElementById('inputGenero').value})`;
+        }
+
+        // Actualizar tratamiento individual
+        function updateTreatment(index, key, value) {
+            treatments[index][key] = value;
+            updatePDFTable();
+        }
+
+        // Agregar tratamiento
+        function addTreatment() {
+            const nameInput = document.getElementById('newTratamiento');
+            const qtyInput = document.getElementById('newCantidad');
+            const costInput = document.getElementById('newCosto');
+
+            if (nameInput.value.trim() !== '') {
+                treatments.push({
+                    id: Date.now(),
+                    name: nameInput.value.trim(),
+                    qty: qtyInput.value.trim() || '',
+                    cost: costInput.value.trim() || ''
+                });
+                nameInput.value = '';
+                qtyInput.value = '';
+                costInput.value = '';
+                renderPOSControls();
+            }
+        }
+
+        // Eliminar tratamiento
+        function removeTreatment(index) {
+            treatments.splice(index, 1);
+            renderPOSControls();
+        }
+
+        // Renderizar la tabla dentro de la vista previa del PDF
+        function updatePDFTable() {
+            const tbody = document.getElementById('pdfTreatmentsBody');
+            tbody.innerHTML = '';
+
+            if (treatments.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td style="height: 30px;">&nbsp;</td>
+                        <td>&nbsp;</td>
+                        <td>&nbsp;</td>
+                    </tr>
+                `;
+            } else {
+                treatments.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${item.name || '&nbsp;'}</td>
+                        <td>${item.qty || '&nbsp;'}</td>
+                        <td>${item.cost || '&nbsp;'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        }
+
+        // Exportar como PDF manteniendo proporciones exactas
+        function exportToPDF() {
+            const element = document.getElementById('pdfContent');
+            const nombrePaciente = document.getElementById('inputNombre').value || 'Paciente';
+
+            const opt = {
+                margin:       0,
+                filename:     `Ficha_Clinica_${nombrePaciente.trim().replace(/\s+/g, '_') || 'Sin_Nombre'}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save();
+        }
+
+        // Inicialización
+        renderPOSControls();
+        updatePDF();
+    </script>
+</body>
+</html>
